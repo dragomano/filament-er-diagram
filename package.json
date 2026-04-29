@@ -1,0 +1,17 @@
+{
+    "name": "filament-er-diagram",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite build --watch"
+    },
+    "devDependencies": {
+        "d3-drag": "^3.0.0",
+        "d3-force": "^3.0.0",
+        "d3-selection": "^3.0.0",
+        "d3-transition": "^3.0.1",
+        "d3-zoom": "^3.0.0",
+        "vite": "^8.0.10"
+    }
+}
