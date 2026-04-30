@@ -2896,11 +2896,11 @@ var ba = [
 		dash: null,
 		marker: "url(#m-hasone)"
 	}
-}, Ca = 172, $ = 32, wa = 22, Ta = 8, Ea = { highlight_connections_hint: "" };
-function Da(e) {
+}, Ca = 172, $ = 32, wa = 22, Ta = 8;
+function Ea(e) {
 	return $ + e.columns.length * wa + Ta;
 }
-function Oa(e) {
+function Da(e) {
 	let t = e?.data?.data?.nodes ? e.data : e;
 	return {
 		data: t?.data?.nodes ? t.data : t,
@@ -2911,15 +2911,32 @@ function Oa(e) {
 		}
 	};
 }
-function ka(e, t = {}) {
-	let n = {
-		...Ea,
-		...t
-	}, r = Oa(e);
+function Oa(e = "", t) {
+	return Object.entries(t).reduce((e, [t, n]) => e.split(`:${t}`).join(String(n ?? "")), e);
+}
+function ka(e, t) {
+	let n = [];
+	return e.pk && n.push(t.primary_key), e.fk && n.push(t.foreign_key), [
+		e.name,
+		e.type,
+		n.join(", ")
+	].filter(Boolean).join(", ");
+}
+function Aa(e, t, n) {
+	let r = e.columns?.length ? e.columns.map((e) => ka(e, n)).join("; ") : n.no_columns;
+	return Oa(n.model_node_label, {
+		model: e.id,
+		table: e.table,
+		relationships: t?.node_relationships?.[e.id] ?? "",
+		columns: r
+	});
+}
+function ja(e, t = {}) {
+	let n = Da(e);
 	return {
-		data: r.data,
-		summary: r.summary,
-		statusMsg: n.highlight_connections_hint,
+		data: n.data,
+		summary: n.summary,
+		statusMsg: t.highlight_connections_hint ?? "",
 		_sim: null,
 		_zoom: null,
 		_selectedId: null,
@@ -2927,58 +2944,66 @@ function ka(e, t = {}) {
 			this._render(e);
 		},
 		refresh(e) {
-			let t = Oa(e), r = t.data;
-			!r?.nodes || !r?.edges || (this.data = r, this.summary = t.summary, this.statusMsg = n.highlight_connections_hint, this._selectedId = null, this._render(this.$refs?.svg));
+			let n = Da(e), r = n.data;
+			!r?.nodes || !r?.edges || (this.data = r, this.summary = n.summary, this.statusMsg = t.highlight_connections_hint ?? "", this._selectedId = null, this._render(this.$refs?.svg));
 		},
 		_render(e) {
 			if (!e) return;
 			this._sim?.stop(), this._sim = null, this._zoom = null;
-			let t = document.documentElement.classList.contains("dark"), n = t ? xa : ba, r = e.clientWidth || 900, i = e.clientHeight || 600, a = this.data.nodes.map((e, t) => ({
+			let n = document.documentElement.classList.contains("dark"), r = n ? xa : ba, i = e.clientWidth || 900, a = e.clientHeight || 600, o = this.data.nodes.map((e, t) => ({
 				...e,
 				w: Ca,
-				h: Da(e),
-				color: n[t % n.length],
-				x: r / 2 + Math.cos(t / this.data.nodes.length * 2 * Math.PI) * 270,
-				y: i / 2 + Math.sin(t / this.data.nodes.length * 2 * Math.PI) * 200
-			})), o = Object.fromEntries(a.map((e) => [e.id, e])), s = this.data.edges.filter((e) => o[e.source] && o[e.target]).map((e) => ({
+				h: Ea(e),
+				color: r[t % r.length],
+				x: i / 2 + Math.cos(t / this.data.nodes.length * 2 * Math.PI) * 270,
+				y: a / 2 + Math.sin(t / this.data.nodes.length * 2 * Math.PI) * 200
+			})), s = Object.fromEntries(o.map((e) => [e.id, e])), c = this.data.edges.filter((e) => s[e.source] && s[e.target]).map((e) => ({
 				...e,
-				source: o[e.source],
-				target: o[e.target]
-			})), c = D(e), l = c.select("#er-g");
-			c.interrupt(), l.interrupt().attr("transform", null).selectAll("*").remove(), this._zoom = Ii().scaleExtent([.15, 4]).on("zoom", (e) => l.attr("transform", e.transform)), c.call(this._zoom), c.call(this._zoom.transform, J);
-			let u = l.append("g").selectAll("g").data(s).enter().append("g"), d = u.append("path").attr("fill", "none").attr("stroke-width", 1.5).attr("stroke", (e) => Sa[e.type]?.stroke ?? "#9ca3af").attr("stroke-dasharray", (e) => Sa[e.type]?.dash ?? null).attr("marker-end", (e) => Sa[e.type]?.marker ?? "url(#m-belongsto)"), f = u.append("text").text((e) => e.name).attr("font-size", "10").attr("text-anchor", "middle").attr("dominant-baseline", "central").attr("fill", t ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)"), p = l.append("g").selectAll("g.er-node").data(a).enter().append("g").attr("class", "er-node").style("cursor", "pointer").on("click", (e, t) => this._selectNode(t, p, d, f, s)).call(Ut().on("start", (e, t) => {
+				source: s[e.source],
+				target: s[e.target]
+			})), l = D(e), u = l.select("#er-g");
+			l.interrupt(), l.attr("aria-busy", "true"), u.interrupt().attr("transform", null).selectAll("*").remove(), this._zoom = Ii().scaleExtent([.15, 4]).on("zoom", (e) => u.attr("transform", e.transform)), l.call(this._zoom), l.call(this._zoom.transform, J);
+			let d = u.append("g").attr("aria-hidden", "true").selectAll("g").data(c).enter().append("g"), f = d.append("path").attr("fill", "none").attr("stroke-width", 1.5).attr("stroke", (e) => Sa[e.type]?.stroke ?? "#9ca3af").attr("stroke-dasharray", (e) => Sa[e.type]?.dash ?? null).attr("marker-end", (e) => Sa[e.type]?.marker ?? "url(#m-belongsto)"), p = d.append("text").text((e) => e.name).attr("font-size", "10").attr("text-anchor", "middle").attr("dominant-baseline", "central").attr("fill", n ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)"), m = u.append("g").selectAll("g.er-node").data(o).enter().append("g").attr("class", "er-node").attr("role", "button").attr("tabindex", 0).attr("aria-pressed", "false").attr("aria-label", (e) => Aa(e, this.summary, t)).style("cursor", "pointer").on("click", (e, t) => this._selectNode(t, m, f, p, c)).on("keydown", (e, t) => {
+				e.key !== "Enter" && e.key !== " " || (e.preventDefault(), this._selectNode(t, m, f, p, c));
+			}).on("focus", function() {
+				D(this).select(".er-body").attr("stroke-width", 2.5);
+			}).on("blur", function() {
+				D(this).select(".er-body").attr("stroke-width", 1);
+			}).call(Ut().on("start", (e, t) => {
 				e.active || this._sim.alphaTarget(.3).restart(), t.fx = t.x, t.fy = t.y;
 			}).on("drag", (e, t) => {
 				t.fx = e.x, t.fy = e.y;
 			}).on("end", (e, t) => {
 				e.active || this._sim.alphaTarget(0), t.fx = null, t.fy = null;
 			}));
-			p.append("rect").attr("class", "er-body").attr("width", (e) => e.w).attr("height", (e) => e.h).attr("rx", 8).attr("fill", (e) => e.color.fill).attr("stroke", (e) => e.color.border).attr("stroke-width", 1), p.append("rect").attr("width", (e) => e.w).attr("height", $).attr("rx", 8).attr("fill", (e) => e.color.header), p.append("rect").attr("y", $ - 8).attr("width", (e) => e.w).attr("height", 8).attr("fill", (e) => e.color.header), p.append("text").text((e) => e.id).attr("x", 10).attr("y", $ / 2).attr("dominant-baseline", "central").attr("font-size", 13).attr("font-weight", 500).attr("fill", (e) => e.color.text), p.append("text").text((e) => e.table).attr("x", (e) => e.w - 8).attr("y", $ / 2).attr("text-anchor", "end").attr("dominant-baseline", "central").attr("font-size", 9).attr("opacity", .65).attr("fill", (e) => e.color.border), p.each(function(e) {
-				let n = D(this);
+			m.append("rect").attr("class", "er-body").attr("width", (e) => e.w).attr("height", (e) => e.h).attr("rx", 8).attr("fill", (e) => e.color.fill).attr("stroke", (e) => e.color.border).attr("stroke-width", 1), m.append("rect").attr("width", (e) => e.w).attr("height", $).attr("rx", 8).attr("fill", (e) => e.color.header), m.append("rect").attr("y", $ - 8).attr("width", (e) => e.w).attr("height", 8).attr("fill", (e) => e.color.header), m.append("text").text((e) => e.id).attr("x", 10).attr("y", $ / 2).attr("dominant-baseline", "central").attr("font-size", 13).attr("font-weight", 500).attr("fill", (e) => e.color.text), m.append("text").text((e) => e.table).attr("x", (e) => e.w - 8).attr("y", $ / 2).attr("text-anchor", "end").attr("dominant-baseline", "central").attr("font-size", 9).attr("opacity", .65).attr("fill", (e) => e.color.border), m.each(function(e) {
+				let t = D(this);
 				e.columns.forEach((r, i) => {
 					let a = $ + i * wa + wa / 2 + 4;
-					i > 0 && n.append("line").attr("x1", 6).attr("x2", e.w - 6).attr("y1", $ + i * wa + 4).attr("y2", $ + i * wa + 4).attr("stroke", t ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)").attr("stroke-width", .5), n.append("text").text(r.name).attr("x", 10).attr("y", a).attr("dominant-baseline", "central").attr("font-size", 11).attr("fill", t ? "rgba(255,255,255,0.65)" : "rgba(20,20,20,0.72)"), n.append("text").text(r.type).attr("x", e.w - (r.pk || r.fk ? 32 : 8)).attr("y", a).attr("text-anchor", "end").attr("dominant-baseline", "central").attr("font-size", 9).attr("fill", t ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.3)"), (r.pk || r.fk) && n.append("text").text(r.pk ? "PK" : "FK").attr("x", e.w - 8).attr("y", a).attr("text-anchor", "end").attr("dominant-baseline", "central").attr("font-size", 9).attr("font-weight", 600).attr("fill", r.pk ? e.color.border : "#9ca3af");
+					i > 0 && t.append("line").attr("x1", 6).attr("x2", e.w - 6).attr("y1", $ + i * wa + 4).attr("y2", $ + i * wa + 4).attr("stroke", n ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)").attr("stroke-width", .5), t.append("text").text(r.name).attr("x", 10).attr("y", a).attr("dominant-baseline", "central").attr("font-size", 11).attr("fill", n ? "rgba(255,255,255,0.65)" : "rgba(20,20,20,0.72)"), t.append("text").text(r.type).attr("x", e.w - (r.pk || r.fk ? 32 : 8)).attr("y", a).attr("text-anchor", "end").attr("dominant-baseline", "central").attr("font-size", 9).attr("fill", n ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.3)"), (r.pk || r.fk) && t.append("text").text(r.pk ? "PK" : "FK").attr("x", e.w - 8).attr("y", a).attr("text-anchor", "end").attr("dominant-baseline", "central").attr("font-size", 9).attr("font-weight", 600).attr("fill", r.pk ? e.color.border : "#9ca3af");
 				});
-			}), this._sim = va(a).force("link", la(s).id((e) => e.id).distance(310).strength(.22)).force("charge", ya().strength(-650)).force("center", Li(r / 2, i / 2)).force("collide", oa().radius((e) => Math.max(e.w, e.h) * .68 + 20)).on("tick", () => {
-				p.attr("transform", (e) => `translate(${e.x - e.w / 2},${e.y - e.h / 2})`), d.attr("d", (e) => {
+			}), m.selectAll("rect, line, text").attr("aria-hidden", "true"), this._sim = va(o).force("link", la(c).id((e) => e.id).distance(310).strength(.22)).force("charge", ya().strength(-650)).force("center", Li(i / 2, a / 2)).force("collide", oa().radius((e) => Math.max(e.w, e.h) * .68 + 20)).on("tick", () => {
+				m.attr("transform", (e) => `translate(${e.x - e.w / 2},${e.y - e.h / 2})`), f.attr("d", (e) => {
 					if (e.source === e.target) {
 						let t = e.source.x + e.source.w / 2, n = e.source.y;
 						return `M${t},${n} C${t + 90},${n - 70} ${t + 90},${n + 70} ${t},${n + 24}`;
 					}
 					let t = e.target.x - e.source.x, n = Math.min(Math.abs(t) * .45, 160);
 					return `M${e.source.x},${e.source.y} C${e.source.x + n},${e.source.y} ${e.target.x - n},${e.target.y} ${e.target.x},${e.target.y}`;
-				}), f.attr("x", (e) => (e.source.x + e.target.x) / 2).attr("y", (e) => (e.source.y + e.target.y) / 2 - 10);
-			}), this._sim.on("end", () => this.erZoomReset()).alphaMin(.05);
+				}), p.attr("x", (e) => (e.source.x + e.target.x) / 2).attr("y", (e) => (e.source.y + e.target.y) / 2 - 10);
+			}), this._sim.on("end", () => {
+				l.attr("aria-busy", "false"), this.erZoomReset();
+			}).alphaMin(.05);
 		},
-		_selectNode(e, t, r, i, a) {
-			if (this._selectedId = this._selectedId === e.id ? null : e.id, !this._selectedId) {
-				t.style("opacity", 1), r.style("opacity", .85), i.style("opacity", .7), this.statusMsg = n.highlight_connections_hint;
+		_selectNode(e, n, r, i, a) {
+			if (this._selectedId = this._selectedId === e.id ? null : e.id, n.attr("aria-pressed", (e) => this._selectedId === e.id ? "true" : "false"), !this._selectedId) {
+				n.style("opacity", 1), r.style("opacity", .85), i.style("opacity", .7), this.statusMsg = t.highlight_connections_hint ?? "";
 				return;
 			}
 			let o = new Set([this._selectedId]);
 			a.forEach((e) => {
 				e.source.id === this._selectedId && o.add(e.target.id), e.target.id === this._selectedId && o.add(e.source.id);
-			}), t.style("opacity", (e) => o.has(e.id) ? 1 : .12), r.style("opacity", (e) => e.source.id === this._selectedId || e.target.id === this._selectedId ? 1 : .04), i.style("opacity", (e) => e.source.id === this._selectedId || e.target.id === this._selectedId ? 1 : .04);
+			}), n.style("opacity", (e) => o.has(e.id) ? 1 : .12), r.style("opacity", (e) => e.source.id === this._selectedId || e.target.id === this._selectedId ? 1 : .04), i.style("opacity", (e) => e.source.id === this._selectedId || e.target.id === this._selectedId ? 1 : .04);
 			let s = this.summary.node_relationships?.[e.id] ?? "";
 			this.statusMsg = [
 				e.id,
@@ -2987,7 +3012,12 @@ function ka(e, t = {}) {
 			].filter(Boolean).join(" · ");
 		},
 		search(e) {
-			D(document.getElementById("er-g")).selectAll("g.er-node").style("opacity", (t) => e ? t.id.toLowerCase().includes(e.toLowerCase()) ? 1 : .1 : 1);
+			let n = document.getElementById("er-g"), r = e?.toLowerCase() ?? "", i = 0;
+			D(n).selectAll("g.er-node").style("opacity", (e) => {
+				if (!r) return 1;
+				let t = e.id.toLowerCase().includes(r);
+				return t && i++, t ? 1 : .1;
+			}), this.statusMsg = r ? Oa(t.search_status, { count: i }) : t.highlight_connections_hint ?? "";
 		},
 		erZoom(e) {
 			D(this.$refs?.svg ?? "#er-svg").transition().duration(250).call(this._zoom.scaleBy, e);
@@ -3056,4 +3086,4 @@ function ka(e, t = {}) {
 	};
 }
 //#endregion
-export { ka as default };
+export { ja as default };
