@@ -1,6 +1,8 @@
 name: Build Assets
 
 on:
+  workflow_dispatch:
+
   push:
     paths:
       - 'resources/js/components/er-diagram.js'
