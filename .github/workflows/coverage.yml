@@ -22,14 +22,11 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: pdo, sqlite, pdo_sqlite, bcmath, intl, fileinfo
+          extensions: pdo, sqlite, pdo_sqlite, bcmath, intl, fileinfo, ctype, mbstring, zip
           coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.php == '8.5' && 'xdebug' || 'none' }}
 
       - name: Install dependencies
-        run: composer install --ignore-platform-reqs
-
-      - name: Check platform requirements
-        run: composer check-platform-reqs
+        run: composer install
 
       - name: Run Rector
         if: matrix.os == 'ubuntu-latest' && matrix.php == '8.5'
