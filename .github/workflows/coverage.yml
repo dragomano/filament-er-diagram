@@ -22,6 +22,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          extensions: intl
           coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.php == '8.5' && 'xdebug' || 'none' }}
 
       - name: Install dependencies
