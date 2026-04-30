@@ -45,10 +45,6 @@ const HEADER_H = 32;
 const FIELD_H = 22;
 const FIELD_PAD = 8;
 
-const DEFAULT_TRANSLATIONS = {
-    highlight_connections_hint: '',
-};
-
 function nodeHeight(m) {
     return HEADER_H + m.columns.length * FIELD_H + FIELD_PAD;
 }
@@ -67,14 +63,46 @@ function normalizePayload(payload) {
     };
 }
 
+function formatMessage(message = '', replacements) {
+    return Object.entries(replacements).reduce(
+        (text, [key, value]) => text.split(`:${key}`).join(String(value ?? '')),
+        message,
+    );
+}
+
+function columnAriaLabel(column, translations) {
+    const flags = [];
+
+    if (column.pk) flags.push(translations.primary_key);
+    if (column.fk) flags.push(translations.foreign_key);
+
+    return [
+        column.name,
+        column.type,
+        flags.join(', '),
+    ].filter(Boolean).join(', ');
+}
+
+function modelNodeAriaLabel(node, summary, translations) {
+    const columns = node.columns?.length
+        ? node.columns.map(column => columnAriaLabel(column, translations)).join('; ')
+        : translations.no_columns;
+
+    return formatMessage(translations.model_node_label, {
+        model: node.id,
+        table: node.table,
+        relationships: summary?.node_relationships?.[node.id] ?? '',
+        columns,
+    });
+}
+
 export default function erDiagram(payload, translations = {}) {
-    const messages = { ...DEFAULT_TRANSLATIONS, ...translations };
     const initialPayload = normalizePayload(payload);
 
     return {
         data: initialPayload.data,
         summary: initialPayload.summary,
-        statusMsg: messages.highlight_connections_hint,
+        statusMsg: translations.highlight_connections_hint ?? '',
         _sim: null,
         _zoom: null,
         _selectedId: null,
@@ -92,7 +120,7 @@ export default function erDiagram(payload, translations = {}) {
 
             this.data = nextData;
             this.summary = nextPayload.summary;
-            this.statusMsg = messages.highlight_connections_hint;
+            this.statusMsg = translations.highlight_connections_hint ?? '';
             this._selectedId = null;
             this._render(this.$refs?.svg);
         },
@@ -128,6 +156,7 @@ export default function erDiagram(payload, translations = {}) {
             const g = root.select('#er-g');
 
             root.interrupt();
+            root.attr('aria-busy', 'true');
             g.interrupt().attr('transform', null).selectAll('*').remove();
 
             // Zoom
@@ -138,7 +167,7 @@ export default function erDiagram(payload, translations = {}) {
             root.call(this._zoom.transform, zoomIdentity);
 
             // Edges
-            const edgeSel   = g.append('g').selectAll('g').data(links).enter().append('g');
+            const edgeSel   = g.append('g').attr('aria-hidden', 'true').selectAll('g').data(links).enter().append('g');
             const edgePaths  = edgeSel.append('path')
                 .attr('fill', 'none')
                 .attr('stroke-width', 1.5)
@@ -154,8 +183,26 @@ export default function erDiagram(payload, translations = {}) {
 
             // Nodes
             const nodeSel = g.append('g').selectAll('g.er-node').data(nodes).enter()
-                .append('g').attr('class', 'er-node').style('cursor', 'pointer')
+                .append('g')
+                .attr('class', 'er-node')
+                .attr('role', 'button')
+                .attr('tabindex', 0)
+                .attr('aria-pressed', 'false')
+                .attr('aria-label', d => modelNodeAriaLabel(d, this.summary, translations))
+                .style('cursor', 'pointer')
                 .on('click', (_, d) => this._selectNode(d, nodeSel, edgePaths, edgeLabels, links))
+                .on('keydown', (e, d) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+
+                    e.preventDefault();
+                    this._selectNode(d, nodeSel, edgePaths, edgeLabels, links);
+                })
+                .on('focus', function () {
+                    select(this).select('.er-body').attr('stroke-width', 2.5);
+                })
+                .on('blur', function () {
+                    select(this).select('.er-body').attr('stroke-width', 1);
+                })
                 .call(drag()
                     .on('start', (e, d) => { if (!e.active) this._sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
                     .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
@@ -209,6 +256,8 @@ export default function erDiagram(payload, translations = {}) {
                 });
             });
 
+            nodeSel.selectAll('rect, line, text').attr('aria-hidden', 'true');
+
             // Force simulation
             this._sim = forceSimulation(nodes)
                 .force('link',    forceLink(links).id(d => d.id).distance(310).strength(0.22))
@@ -234,19 +283,23 @@ export default function erDiagram(payload, translations = {}) {
                             .attr('y', d => (d.source.y + d.target.y) / 2 - 10);
                 });
 
-            this._sim.on('end', () => this.erZoomReset()).alphaMin(0.05);
+            this._sim.on('end', () => {
+                root.attr('aria-busy', 'false');
+                this.erZoomReset();
+            }).alphaMin(0.05);
         },
 
         // ── Selection ────────────────────────────────────────────────
         _selectNode(d, nodeSel, edgePaths, edgeLabels, links) {
             this._selectedId = this._selectedId === d.id ? null : d.id;
+            nodeSel.attr('aria-pressed', n => this._selectedId === n.id ? 'true' : 'false');
 
             if (!this._selectedId) {
                 nodeSel.style('opacity', 1);
                 edgePaths.style('opacity', 0.85);
                 edgeLabels.style('opacity', 0.7);
 
-                this.statusMsg = messages.highlight_connections_hint;
+                this.statusMsg = translations.highlight_connections_hint ?? '';
 
                 return;
             }
@@ -270,11 +323,22 @@ export default function erDiagram(payload, translations = {}) {
         // ── Search ───────────────────────────────────────────────────
         search(q) {
             const svg = document.getElementById('er-g');
+            const normalizedQuery = q?.toLowerCase() ?? '';
+            let matches = 0;
 
             select(svg).selectAll('g.er-node').style('opacity', n => {
-                if (!q) return 1;
-                return n.id.toLowerCase().includes(q.toLowerCase()) ? 1 : 0.1;
+                if (!normalizedQuery) return 1;
+
+                const isMatch = n.id.toLowerCase().includes(normalizedQuery);
+
+                if (isMatch) matches++;
+
+                return isMatch ? 1 : 0.1;
             });
+
+            this.statusMsg = normalizedQuery
+                ? formatMessage(translations.search_status, { count: matches })
+                : translations.highlight_connections_hint ?? '';
         },
 
         // ── Zoom helpers (called from Blade) ─────────────────────────
